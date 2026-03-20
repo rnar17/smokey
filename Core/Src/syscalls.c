@@ -21,6 +21,7 @@
  */
 
 /* Includes */
+#include "main.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -32,6 +33,7 @@
 
 
 /* Variables */
+extern UART_HandleTypeDef huart6;
 extern int __io_putchar(int ch) __attribute__((weak));
 extern int __io_getchar(void) __attribute__((weak));
 
@@ -77,17 +79,24 @@ __attribute__((weak)) int _read(int file, char *ptr, int len)
   return len;
 }
 
-__attribute__((weak)) int _write(int file, char *ptr, int len)
-{
-  (void)file;
-  int DataIdx;
+// __attribute__((weak)) int _write(int file, char *ptr, int len)
+// {
+//   (void)file;
+//   int DataIdx;
 
-  for (DataIdx = 0; DataIdx < len; DataIdx++)
-  {
-    __io_putchar(*ptr++);
-  }
-  return len;
+//   for (DataIdx = 0; DataIdx < len; DataIdx++)
+//   {
+//     __io_putchar(*ptr++);
+//   }
+//   return len;
+// }
+
+int _write(int file, char *ptr, int len)
+{
+    HAL_UART_Transmit(&huart6, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+    return len;
 }
+
 
 int _close(int file)
 {
