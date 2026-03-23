@@ -56,10 +56,10 @@ void my_robot_app()
     HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
 
     // Start PWM timers
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // LR
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // LL
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // RR
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4); // RL
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // R LPWM (reverse)
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // R RPWM (forward)
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // L LPWM (reverse)
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4); // L RPWM (forward)
     uint32_t duty = htim3.Init.Period / 2;
 
     // Initialize all to 0 
@@ -72,8 +72,11 @@ void my_robot_app()
         int16_t left_count  = __HAL_TIM_GET_COUNTER(&htim1);
         int16_t right_count = __HAL_TIM_GET_COUNTER(&htim4);
 
-        // printf("R:%d, L:%d\r\n", right_count, left_count);
-        HAL_Delay(500);
+        char tx_buf[32];
+        int len = snprintf(tx_buf, sizeof(tx_buf), "%d,%d\r\n", left_count, right_count);
+        HAL_UART_Transmit(&huart6, (uint8_t*)tx_buf, len, 10);
+
+        HAL_Delay(50);
     }
 }
 
@@ -102,22 +105,21 @@ void set_motor(float left_vel, float right_vel)
     left_pwm  = left_pwm  > MAX_PWM ? MAX_PWM : left_pwm;
     right_pwm = right_pwm > MAX_PWM ? MAX_PWM : right_pwm;
 
-    // left motor
+    // left motor (CH3 = LPWM, CH4 = RPWM)
+    if (left_vel >= 0) {
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, left_pwm);   // RPWM (forward)
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 0);           // LPWM (reverse)
+    } else {
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, left_pwm);
+    }
+
+    // right motor (CH1 = LPWM, CH2 = RPWM)
     if (right_vel >= 0) {
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, right_pwm);  // LL (forward)
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);          // LR (reverse)
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, right_pwm);  // RPWM (forward)
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);           // LPWM (reverse)
     } else {
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, left_pwm);
-    }
-
-    // right motor
-    if (right_vel >= 0) {
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, left_pwm); // RL (forward)
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);          // RR (reverse)
-    } else {
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 0);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, left_pwm);
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, right_pwm);
     }
 }
-
