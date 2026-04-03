@@ -4,8 +4,8 @@
 #include "main.h"
 
 typedef struct {
-    float kp, ki, kd; 
-    float integral, deriv;
+    float kp, ki, kd;
+    float integral, deriv, prev_err;
 } PI_Controller;
 
 void my_robot_app(void);
