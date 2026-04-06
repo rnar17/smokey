@@ -13,7 +13,7 @@ extern UART_HandleTypeDef huart6;
 #define PACKET_SIZE 14
 #define MAX_VEL 0.5f
 #define MAX_PWM 65000
-#define WHEEL_BASE 0.127f
+#define WHEEL_BASE 0.145f
 
 #define LOOP_MS 20
 #define TICKS_PER_REV 780.0f
@@ -22,7 +22,7 @@ extern UART_HandleTypeDef huart6;
 uint8_t rx_data[PACKET_SIZE];
 float linear_vel, angular_vel;
 float left_vel_target = 0.0f, right_vel_target = 0.0f;
-
+double theta = 0.0; double x_pos = 0.0; double y_pos = 0.0;
 
 PI_Controller left_pid  = {0.75f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 PI_Controller right_pid = {0.75f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f};
@@ -75,16 +75,27 @@ void my_robot_app()
         float left_vel_actual  = (left_diff  / TICKS_PER_REV) * (2.0f * M_PI * WHEEL_RADIUS) / dt;
         float right_vel_actual = (right_diff / TICKS_PER_REV) * (2.0f * M_PI * WHEEL_RADIUS) / dt;
 
+        // ---- ODOMETRY -----
+        float robot_v = (right_vel_actual + left_vel_actual) / 2.0f;
+        float robot_w = (right_vel_actual - left_vel_actual) / WHEEL_BASE;
+
+        char tx_buf[64];
+        int len = snprintf(tx_buf, sizeof(tx_buf), "V,%.4f,%.4f\r\n", robot_v, robot_w);
+
+        HAL_UART_Transmit_IT(&huart6, (uint8_t*)tx_buf, len);
+        // ---- ODOMETRY -----
+
         float left_output  = pi_control_compute(&left_pid,  left_vel_target,  left_vel_actual,  dt);
         float right_output = pi_control_compute(&right_pid, right_vel_target, right_vel_actual, dt);
 
         set_motor(left_output, right_output);
 
-        char tx_buf[64];
-        int len = snprintf(tx_buf, sizeof(tx_buf), "%f,%f,%f,%f\r\n",
-                           left_vel_target, left_vel_actual,
-                           right_vel_target, right_vel_actual);
-        HAL_UART_Transmit(&huart6, (uint8_t*)tx_buf, len, 10);
+        // DEBUG FOR PID TUNING, BUT NOT NECCESSARY ANYMORE
+        // char tx_buf[64];
+        // int len = snprintf(tx_buf, sizeof(tx_buf), "%f,%f,%f,%f\r\n",
+        //                    left_vel_target, left_vel_actual,
+        //                    right_vel_target, right_vel_actual);
+        // HAL_UART_Transmit(&huart6, (uint8_t*)tx_buf, len, 10);
 
         HAL_Delay(LOOP_MS);
     }
